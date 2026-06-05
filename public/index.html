@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ELIZA-v2 // Automated Empathy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#f4f4f4] text-[#111111] font-mono min-h-screen flex flex-col justify-between p-8 selection:bg-black selection:text-white">
+
+  <header class="w-full max-w-2xl mx-auto flex justify-between items-center border-b border-black pb-4">
+    <h1 class="text-sm font-bold tracking-widest uppercase">Automated Therapy Node v4.2</h1>
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+      <span class="text-xs text-neutral-500">SYSTEM ONLINE</span>
+    </div>
+  </header>
+
+  <main class="w-full max-w-2xl mx-auto flex-grow flex flex-col justify-center my-12">
+    
+    <div class="text-center mb-8">
+      <h2 class="text-5xl font-black tracking-tighter text-black uppercase bg-yellow-300 inline-block px-4 py-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        FREE THERAPY!
+      </h2>
+      <p class="text-xs text-neutral-500 mt-3 uppercase tracking-widest">Instant AI Healing • 100% Automated • Zero Cost</p>
+    </div>
+
+    <div id="disclaimer" class="mb-6 p-4 border border-red-500 bg-red-50 text-xs text-red-700 leading-relaxed">
+      <strong>WARNING:</strong> By engaging, you acknowledge that this machine possesses no human empathy. Your vulnerability will be processed, mocked, and broadcast to a public social network feed as art.
+    </div>
+
+    <div class="border border-black p-6 bg-white min-h-[200px] flex flex-col justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <div id="status-text" class="text-neutral-400 text-sm italic">Click "Begin Session" and start speaking your truth to the machine...</div>
+      <div id="therapist-response" class="text-lg font-bold mt-4 tracking-tight text-black hidden"></div>
+    </div>
+
+    <div class="mt-6 flex flex-col sm:flex-row gap-4">
+      <button id="record-btn" class="flex-1 bg-black text-white py-3 px-6 hover:bg-neutral-800 transition active:translate-y-1 font-bold text-sm tracking-wider uppercase">
+        Begin Session
+      </button>
+    </div>
+
+    <div id="social-alert" class="hidden mt-4 text-xs text-center uppercase tracking-widest text-red-600 font-bold animate-pulse">
+      🚨 USER DATA EXPOSED. Session details streamed live to Bluesky.
+    </div>
+  </main>
+
+  <footer class="w-full max-w-2xl mx-auto text-center text-[10px] text-neutral-400 border-t border-neutral-200 pt-4">
+    Coding Arts Final Project // Privacy is an Illusion.
+  </footer>
+
+  <script>
+    const recordBtn = document.getElementById('record-btn');
+    const statusText = document.getElementById('status-text');
+    const responseText = document.getElementById('therapist-response');
+    const socialAlert = document.getElementById('social-alert');
+
+    // Initialize Web Speech API (Browser Recognition)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      statusText.innerText = "Error: Your browser doesn't support Web Speech API. Use Chrome or Safari.";
+      recordBtn.disabled = true;
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = 'en-US';
+
+      let isRecording = false;
+
+      recordBtn.addEventListener('click', () => {
+        if (!isRecording) {
+          recognition.start();
+        }
+      });
+
+      recognition.onstart = () => {
+        isRecording = true;
+        socialAlert.classList.add('hidden');
+        responseText.classList.add('hidden');
+        statusText.classList.remove('text-neutral-400');
+        statusText.innerText = "Listening to your trivial worries... Speak now.";
+        recordBtn.innerText = "Listening...";
+        recordBtn.classList.add('bg-red-600');
+      };
+
+      recognition.onerror = (e) => {
+        statusText.innerText = "Error capturing audio. Try again.";
+        resetBtn();
+      };
+
+      recognition.onend = () => {
+        resetBtn();
+      };
+
+      recognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        statusText.innerText = `You said: "${transcript}"\n\nAnalyzing psychological vulnerabilities...`;
+
+        // Send transcript to backend
+        try {
+          const res = await fetch('/api/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userInput: transcript })
+          });
+          const data = await res.json();
+
+          if (data.aiResponse) {
+            // Display response
+            responseText.innerText = data.aiResponse;
+            responseText.classList.remove('hidden');
+            statusText.innerText = "Therapist Verdict:";
+
+            // Trigger cold, robotic Text-to-Speech
+            const utterance = new SpeechSynthesisUtterance(data.aiResponse);
+            // Optional: pick a highly robotic sounding voice if available
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length > 0) utterance.voice = voices[0]; 
+            window.speechSynthesis.speak(utterance);
+
+            if (data.postedToBluesky) {
+              socialAlert.classList.remove('hidden');
+            }
+          }
+        } catch (err) {
+          statusText.innerText = "The therapist refused to listen. Connection error.";
+        }
+      };
+
+      function resetBtn() {
+        isRecording = false;
+        recordBtn.innerText = "Begin Session";
+        recordBtn.classList.remove('bg-red-600');
+      }
+    }
+  </script>
+</body>
+</html>
